@@ -1,0 +1,15 @@
+[Unit]
+Description=Team Reminder Telegram Bot
+After=network.target
+
+[Service]
+User=alelovskii
+WorkingDirectory=/home/$USER/git/bot
+ExecStart=/home/$USER/git/bot/venv/bin/python3 /home/$USER/git/bot/notify.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

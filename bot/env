@@ -1,0 +1,9 @@
+BOT_TOKEN = "your token"
+CHAT_ID = -1000000000000
+
+# Jira
+JIRA_URL=https://jira.example.org
+JIRA_PAT= "your PAT"
+
+# ID ветки форуме
+THREAD_ID_=9999
