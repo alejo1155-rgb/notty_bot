@@ -1,0 +1,72 @@
+# ==============================
+# Python
+# ==============================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Виртуальные окружения
+venv/
+.venv/
+env/
+ENV/
+virtualenv/
+
+# IDE / редакторы
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# ==============================
+# Конфигурация и секреты
+# ==============================
+.env
+.env.local
+.env.*
+!.env.example          
+config_local.py
+secrets.py
+credentials.json
+
+# ==============================
+# Логи и временные файлы
+# ==============================
+*.log
+logs/
+log/
+bot.log               
+occupancy_history.json 
+temp/
+tmp/
+
+# ==============================
+# Системные и рантайм-артефакты
+# ==============================
+*.pid
+*.sock
+*.pid.lock
+
+# systemd (если юниты не в ./systemd/, а локально)
+/etc/systemd/system/telegram-reminder.service
+
+# ==============================
+# Тесты и артефакты сборки
+# ==============================
+.coverage
+.htmlcov/
+.pytest_cache/
+.coverage.*
+pytest-report.xml
+
+# Coverage
+coverage.xml
+*.coverage
+
+# ==============================
+# Прочее
+# ==============================
+Thumbs.db
+*.bak
+*.tmp
