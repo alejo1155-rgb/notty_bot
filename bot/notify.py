@@ -3,7 +3,7 @@ import json
 import random
 import requests
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from dotenv import load_dotenv
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -41,7 +41,7 @@ if not CHAT_ID:
 CHAT_ID = int(CHAT_ID)
 
 # Ветка для уведомлений о серверах
-NOTIFY_THREAD_ID = int(os.getenv("NOTIFY_THREAD_ID", 0))
+THREAD_ID_TESTO = int(os.getenv("THREAD_ID_TESTO", 0))
 
 # Jira (PAT)
 JIRA_URL = os.getenv("JIRA_URL")
@@ -49,11 +49,12 @@ JIRA_PAT = os.getenv("JIRA_PAT")
 
 # Список серверов
 SERVER_NAMES = {
-    "x86": "server1,
-    "arm": "server2",
+    "x86": "10.190.9.63",
+    "arm": "10.177.5.114",
+#    "arm": "xtesto arm-manual"
 }
 
-# В коде работаем с ключами: "x86", "arm"
+# В коде работаем с ключами: "u2", "u9", "arm"
 SERVERS = list(SERVER_NAMES.keys())
 
 # Файл состояния
@@ -117,6 +118,73 @@ def get_business_days(start_date: datetime, end_date: datetime) -> int:
             business_days += 1
         current += timedelta(days=1)
     return business_days
+
+# ========================
+# Праздничная логика
+# ========================
+def is_holiday_period() -> bool:
+    """Проверяет, попадает ли сегодня в праздничный период (31 дек – 11 янв)"""
+    today = date.today()
+    year = today.year
+
+    # Период: 31 декабря текущего года — 11 января следующего
+    start = date(year, 12, 31)
+    end = date(year + 1, 1, 11)
+
+    # Если сегодня ещё до 31.12 (например, 10 янв 2025), смотрим период 2024–2025
+    if today < start:
+        start = date(year - 1, 12, 31)
+        end = date(year, 1, 11)
+
+    return start <= today <= end
+
+
+async def new_year_greeting():
+    now = datetime.now()
+    current_year = now.year - 1  # Потому что поздравление 1 января → прошедший год
+    next_year = now.year
+
+
+    """Новогоднее поздравление от бота «Техник»"""
+    await bot.send_message(
+        CHAT_ID,
+        "🔧 *С НОВЫМ ГОДОМ, КОМАНДА QA!* 🎄\n\n"
+        "Я — *Техник*, ваш сторож серверов, молчаливый страж Jira и вечный напоминатель о дейликах.\n\n"
+        "В 2026 году я:\n"
+        "• Пережил 147 обновлений Python 🐍\n"
+        "• Перезапускался 32 раза (не по своей вине)\n"
+        "• Успешно предотвратил 9 случаев «забыл освободить сервер» 🖥️\n"
+        "• И ни разу не выдал `Connection reset by peer` в праздники 🙏\n\n"
+        "Пусть в 2027:\n"
+        "• Все `состояния серверов` будут в актуальном состоянии 📁\n"
+        "• В `requirements.txt` не будет конфликтов 📜\n"
+        "• `git push` всегда проходит с первого раза 🚀\n"
+        "• А в логах — только INFO, никаких ERROR 📊\n\n"
+        "Счастья вам, тепла, отпусков без багов — и чтобы `sudo` не просил пароль при первом вводе.\n\n"
+        "— С уважением, *Техник* 🤖\n"
+        "P.S. Если вдруг я упаду в праздники — это не баг. Это фича. Шампанское уже `code freeze`. 🥂",
+        parse_mode="Markdown",
+        message_thread_id=THREAD_ID_TESTO
+    )
+
+async def qa_day_greeting():
+    """Поздравление с Днём QA (26 июля)"""
+    await bot.send_message(
+        CHAT_ID,
+        "🧪 *С ДНЁМ QA!* 🎉\n\n"
+        "Сегодня — 26 июля, *Всемирный день тестировщика*!\n\n"
+        "Спасибо, что:\n"
+        "• Находите то, чего, казалось бы, нет 🕵️‍♂️\n"
+        "• Читаете логи лучше, чем детективы — улики 🔍\n"
+        "• Пишете баг-репорты так, что девелоперы сразу понимают — и плачут 😢\n"
+        "• И всё это — с улыбкой и фразой *«у меня локально работает»* 😌\n\n"
+        "Пусть ваши тест-кейсы будут покрыты, баги — воспроизводимы, а автоматизация — стабильной.\n\n"
+        "— С уважением, *Техник* 🤖\n"
+        "P.S. Сегодня можно не писать комментарии в задачах. Почти. 🤫",
+        parse_mode="Markdown",
+        message_thread_id=THREAD_ID_TESTO
+    )
+
 
 # ========================
 # Команды бота
@@ -223,7 +291,7 @@ async def handle_server_action(callback_query: types.CallbackQuery, state: FSMCo
         await bot.send_message(
             chat_id=CHAT_ID,
             text=f"✅ Сервер `{srv_name}` **освобождён** ({owner})",
-            message_thread_id=NOTIFY_THREAD_ID
+            message_thread_id=THREAD_ID_TESTO
         )
         await callback_query.answer("🔓 Освобождено!")
         await cmd_servers(callback_query.message)
@@ -255,12 +323,12 @@ async def process_issue_key(message: types.Message, state: FSMContext):
         "user": username,
         "issue_key": issue_info["key"] if issue_info else None,
         "issue_summary": issue_info["summary"] if issue_info else "",
-        "issue_url": issue_info.get("url", "") if issue_info else ""
+        "issue_url": issue_info["url"] if issue_info else None,  # ← было "issue_url", стало "url"
         "since": datetime.now().isoformat()
     }
     save_state(current_state)
 
-    # Отправляем в ветку 
+    # Отправляем в ветку Testo
     srv_name = SERVER_NAMES[server_key]
     if issue_info:
         summary = issue_info['summary'].replace("&", "&amp;").replace("<", "<").replace(">", ">")
@@ -273,7 +341,7 @@ async def process_issue_key(message: types.Message, state: FSMContext):
         text=msg,
         parse_mode="HTML",
         disable_web_page_preview=True,
-        message_thread_id=NOTIFY_THREAD_ID
+        message_thread_id=THREAD_ID_TESTO
     )
     await message.answer("✅ Сервер успешно занят!")
     await state.finish()
@@ -282,28 +350,81 @@ async def process_issue_key(message: types.Message, state: FSMContext):
 # Напоминания (в основном разделе)
 # ========================
 async def daily_reminder():
+    if is_holiday_period():
+        return
+
+    today = date.today()
+    year = today.year
+
+    # Новогоднее дейли — 30 КАЖДОГО года
+    if today in [date(year, 12, 30)]:
+        await bot.send_message(
+            CHAT_ID,
+            f"🎅 *НОВОГОДНЕЕ ДЕЙЛИ {year}!* 🎄\n\n"
+            "Дед Мороз уже проверил, кто заполнил Tempo 🧑‍🎄\n"
+            "Через 10 минут сбор у ёлки — *в 12:00*!\n"
+            "Ссылка: https://dion.vc/event/gshershakov-astra_mobile_meeting\n\n"
+            "P.S. Если опоздаешь — в Список Плохих QA попадёшь. А там — уголь и баги без автоматизации 🔥",
+            parse_mode="Markdown"
+        )
+    else:
+        await bot.send_message(
+            CHAT_ID,
+            "📢 Внимание! Через 10 минут дейли в 12:00. "
+            "Ссылка для подключения: https://dion.vc/event/gshershakov-astra_mobile_meeting"
+        )
+
+async def qa_day_greeting():
+    """Поздравление с Днём QA (26 июля) — от Техника"""
     await bot.send_message(
         CHAT_ID,
-        "📢 Напоминание: ежедневный стендап через 10 минут.\n"
-        "🔗 Присоединиться: https://meet.example.com/qa-team"
+        "🧪 *С ДНЁМ QA!* 🎉\n\n"
+        "Сегодня — 26 июля, *Всемирный день тестировщика*!\n\n"
+        "Спасибо, что:\n"
+        "• Находите баги там, где девелоперы клянутся: «такого не может быть» 🕵️‍♂️\n"
+        "• Пишете шаги воспроизведения точнее, чем инструкция по сборке Икеи 📋\n"
+        "• Знаете разницу между «не работает» и «не так работает» — и не позволяете её игнорировать 😌\n"
+        "• И всё это — с фразой *«у меня локально работает»* на автомате 🤖\n\n"
+        "А ещё сегодня:\n"
+        "• Можно 5 минут смотреть на падающие тесты — в медитативных целях 🧘‍♂️\n"
+        "• Автоматизация простит, если вы — ручной тестировщик 🤲\n"
+        "• И даже бот разрешил не писать комментарии в задачах. Почти. 😉\n\n"
+        "Пусть ваши чек-листы будут полными, а прод — стабильным.\n"
+        "— С уважением, *Техник* 🤖",
+        parse_mode="Markdown",
+        message_thread_id=THREAD_ID_TESTO
     )
 
+
 async def weekly_reminder():
+    if is_holiday_period():
+        return
     await bot.send_message(
         CHAT_ID,
-        "📢 Сегодня понедельник! В 13:00 будет weekly-митинг.\n"
-        "🔗 Присоединиться: https://meet.example.com/qa-team"
+        "📢 Сегодня понедельник! В 13:00 будет weekly-митинг. "
+        "Ссылка для подключения: https://dion.vc/event/gshershakov-astra_mobile_meeting"
     )
 
 async def tempo_reminder_friday():
-    await bot.send_message(CHAT_ID, "📆 Не забудьте заполнить Tempo за эту неделю! \n"
+    if is_holiday_period():
+        return
+    await bot.send_message(CHAT_ID,
+        "📆 Не забудьте заполнить Tempo за эту неделю!\n"
         "📆 Внесите комментарии в рабочие задачи, которые не окончены.\n"
-        "📆 Проверьте статусы у задач, которые назначены на вас.")
+        "📆 Проверьте статусы у задач, которые назначены на вас."
+    )
 
 async def tempo_monthly_reminder():
-    await bot.send_message(CHAT_ID, "📆 Месяц подходит к концу! Убедитесь, что все часы и комментарии в системе учёта времени актуальны."
+    if is_holiday_period():
+        return
+    await bot.send_message(CHAT_ID,
+        "⚠️ Завтра (1-го числа) произойдёт автоматическая выгрузка Tempo. "
+        "Убедитесь, что всё заполнено вплоть до сегодня!"
+    )
 
 async def check_long_occupied_servers():
+    if is_holiday_period():
+        return
     state = load_state()
     now = datetime.now()
 
@@ -313,16 +434,14 @@ async def check_long_occupied_servers():
         except (ValueError, TypeError):
             continue
 
-        # Считаем рабочие дни с момента занятия
         business_days = get_business_days(since, now)
-
         if business_days > 5:
             user = info["user"]
             msg = f"⚠️ {user}, сервер `{server}` занят уже больше 5 рабочих дней. Не забудь освободить, если не используешь!"
             await bot.send_message(
                 chat_id=CHAT_ID,
                 text=msg,
-                message_thread_id=NOTIFY_THREAD_ID
+                message_thread_id=THREAD_ID_TESTO
             )
 
 
@@ -333,10 +452,28 @@ scheduler.add_job(tempo_reminder_friday, 'cron', day_of_week='fri', hour=16, min
 scheduler.add_job(tempo_monthly_reminder, CronTrigger(day="last", hour=10, minute=0))
 scheduler.add_job(check_long_occupied_servers, 'cron', day_of_week='mon-fri', hour=9, minute=0)  # каждый день в 9:00
 
+# Новогоднее поздравление — каждый 1 января в 00:01
+scheduler.add_job(
+    new_year_greeting,
+    CronTrigger(month=1, day=1, hour=0, minute=1),
+    id="new_year_annual"
+)
+
+# День QA — 26 июля ежегодно, в 10:00
+scheduler.add_job(
+    qa_day_greeting,
+    CronTrigger(month=7, day=26, hour=10, minute=0),
+    id="qa_day_annual"
+)
+
+
+
 # ========================
 # Запуск
 # ========================
+
+
 if __name__ == '__main__':
-    logging.info("Bot started. Scheduler active.")
+    print("✅ Бот запускается...")
     scheduler.start()
     executor.start_polling(dp, skip_updates=True)
